@@ -15,15 +15,24 @@ import UIKit
 public class DOFavoriteButton: UIButton {
 
     private var imageShape: CAShapeLayer!
+    private var selectedImageShape: CAShapeLayer!
+    
     @IBInspectable public var image: UIImage! {
         didSet {
-            createLayers(image: image)
+            createLayers(image: image, selectedImage: selectedImage)
         }
     }
+    
+    @IBInspectable public var selectedImage: UIImage! {
+        didSet {
+            createLayers(image: image, selectedImage: selectedImage)
+        }
+    }
+    
     @IBInspectable public var imageColorOn: UIColor! = UIColor(red: 255/255, green: 172/255, blue: 51/255, alpha: 1.0) {
         didSet {
             if (selected) {
-                imageShape.fillColor = imageColorOn.CGColor
+                selectedImageShape.fillColor = imageColorOn.CGColor
             }
         }
     }
@@ -74,7 +83,7 @@ public class DOFavoriteButton: UIButton {
         didSet {
             if (selected != oldValue) {
                 if selected {
-                    imageShape.fillColor = imageColorOn.CGColor
+                    selectedImageShape.fillColor = imageColorOn.CGColor
                 } else {
                     deselect()
                 }
@@ -90,20 +99,21 @@ public class DOFavoriteButton: UIButton {
         self.init(frame: frame, image: UIImage())
     }
 
-    public init(frame: CGRect, image: UIImage!) {
+    public init(frame: CGRect, image: UIImage!, selectedImage: UIImage! = nil) {
         super.init(frame: frame)
         self.image = image
-        createLayers(image: image)
+        self.selectedImage = selectedImage
+        createLayers(image: image, selectedImage: selectedImage)
         addTargets()
     }
 
     public required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
-        createLayers(image: UIImage())
+        createLayers(image: UIImage(), selectedImage: UIImage())
         addTargets()
     }
 
-    private func createLayers(image image: UIImage!) {
+    private func createLayers(image image: UIImage!, selectedImage: UIImage!) {
         self.layer.sublayers = nil
 
         let imageFrame = CGRect(x: frame.size.width / 2 - image.size.width / 2, y: frame.size.height / 2 - image.size.height / 2, width: image.size.width, height: image.size.height)
@@ -178,6 +188,25 @@ public class DOFavoriteButton: UIButton {
         imageShape.mask!.bounds = imageFrame
         imageShape.mask!.position = imgCenterPoint
 
+        //===============
+        // selected image layer
+        //===============
+        let selectedImageContent: UIImage! = selectedImage ?? image
+        selectedImageShape = CAShapeLayer()
+        selectedImageShape.bounds = imageFrame
+        selectedImageShape.position = imgCenterPoint
+        selectedImageShape.path = UIBezierPath(rect: imageFrame).CGPath
+        selectedImageShape.fillColor = imageColorOn.CGColor
+        selectedImageShape.actions = ["fillColor": NSNull()]
+        selectedImageShape.opacity = 0.0
+        self.layer.addSublayer(selectedImageShape)
+        
+        selectedImageShape.mask = CALayer()
+        selectedImageShape.mask!.contents = selectedImageContent.CGImage
+        selectedImageShape.mask!.bounds = imageFrame
+        selectedImageShape.mask!.position = imgCenterPoint
+        
+        
         //==============================
         // circle transform animation
         //==============================
@@ -362,21 +391,18 @@ public class DOFavoriteButton: UIButton {
     func touchCancel(sender: DOFavoriteButton) {
         self.layer.opacity = 1.0
     }
-
-    public func select() {
-        select(true)
-    }
     
-    public func select(animate animate: Bool) {
+    public func select(animate animate: Bool = true) {
         selected = true
-        imageShape.fillColor = imageColorOn.CGColor
         
         if animate {
             CATransaction.begin()
 
             circleShape.addAnimation(circleTransform, forKey: "transform")
             circleMask.addAnimation(circleMaskTransform, forKey: "transform")
-            imageShape.addAnimation(imageTransform, forKey: "transform")
+            imageShape.opacity = 0.0
+            selectedImageShape.opacity = 1.0
+            selectedImageShape.addAnimation(imageTransform, forKey: "transform")
 
             for i in 0 ..< 5 {
                 lines[i].addAnimation(lineStrokeStart, forKey: "strokeStart")
@@ -390,7 +416,9 @@ public class DOFavoriteButton: UIButton {
 
     public func deselect() {
         selected = false
-        imageShape.fillColor = imageColorOff.CGColor
+        
+        selectedImageShape.opacity = 0.0
+        imageShape.opacity = 1.0
 
         // remove all animations
         circleShape.removeAllAnimations()
